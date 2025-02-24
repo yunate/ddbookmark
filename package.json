@@ -1,21 +1,138 @@
 {
   "name": "ddbookmark",
   "displayName": "ddbookmark",
+  "publisher": "yunate",
   "description": "This is a book mark extension for vscode.",
-  "version": "0.0.1",
+  "version": "1.0.4",
   "engines": {
     "vscode": "^1.97.0"
+  },
+  "icon": "res/images/logo.png",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yunate/ddbookmark"
   },
   "categories": [
     "Other"
   ],
-  "activationEvents": [],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
   "main": "./out/extension.js",
   "contributes": {
     "commands": [
       {
-        "command": "ddbookmark.helloWorld",
-        "title": "Hello World"
+        "command": "ddbookmark.toggle",
+        "title": "Toggle Bookmark",
+        "icon": "$(bookmark)"
+      },
+      {
+        "command": "ddbookmark.addFolder",
+        "title": "Add folder",
+        "icon": "$(new-folder)"
+      },
+      {
+        "command": "ddbookmark.addFolderWithNoParent",
+        "title": "Add folder",
+        "icon": "$(new-folder)"
+      },
+      {
+        "command": "ddbookmark.clearAll",
+        "title": "Clear all",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "ddbookmark.rename",
+        "title": "Rename",
+        "icon": "$(edit)"
+      },
+      {
+        "command": "ddbookmark.delete",
+        "title": "Delete",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "ddbookmark.setGutterIconColor",
+        "title": "Set Gutter Icon Color"
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "ddbookmark-treeview",
+          "title": "Bookmark",
+          "icon": "res/images/logo.svg"
+        }
+      ]
+    },
+    "views": {
+      "ddbookmark-treeview": [
+        {
+          "id": "ddbookmark-treeview",
+          "name": "Bookmark"
+        }
+      ]
+    },
+    "menus": {
+      "view/title": [
+        {
+          "command": "ddbookmark.toggle",
+          "when": "view == ddbookmark-treeview",
+          "group": "navigation@1"
+        },
+        {
+          "command": "ddbookmark.addFolderWithNoParent",
+          "when": "view == ddbookmark-treeview",
+          "group": "navigation@2"
+        },
+        {
+          "command": "ddbookmark.clearAll",
+          "when": "view == ddbookmark-treeview",
+          "group": "navigation@3"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "ddbookmark.rename",
+          "when": "view == ddbookmark-treeview && !listMultiSelection",
+          "group": "inline@1"
+        },
+        {
+          "command": "ddbookmark.delete",
+          "when": "view == ddbookmark-treeview",
+          "group": "inline@2"
+        },
+        {
+          "command": "ddbookmark.addFolder",
+          "when": "view == ddbookmark-treeview && viewItem == folder",
+          "group": "inline@3"
+        },
+        {
+          "command": "ddbookmark.rename",
+          "when": "view == ddbookmark-treeview && !listMultiSelection",
+          "group": "ddbookmark@1"
+        },
+        {
+          "command": "ddbookmark.delete",
+          "when": "view == ddbookmark-treeview",
+          "group": "ddbookmark@2"
+        },
+        {
+          "command": "ddbookmark.addFolder",
+          "when": "view == ddbookmark-treeview && viewItem == folder",
+          "group": "ddbookmark@3"
+        }
+      ]
+    },
+    "keybindings": [
+      {
+        "command": "ddbookmark.rename",
+        "when": "focusedView == ddbookmark-treeview && !listMultiSelection",
+        "key": "f2"
+      },
+      {
+        "command": "ddbookmark.toggle",
+        "key": "ctrl+k ctrl+k"
       }
     ]
   },
@@ -27,15 +144,19 @@
     "lint": "eslint src",
     "test": "vscode-test"
   },
+  "dependencies": {
+    "tinycolor2": "^1.4.6"
+  },
   "devDependencies": {
-    "@types/vscode": "^1.97.0",
     "@types/mocha": "^10.0.10",
     "@types/node": "20.x",
+    "@types/tinycolor2": "^1.4.6",
+    "@types/vscode": "^1.97.0",
     "@typescript-eslint/eslint-plugin": "^8.22.0",
     "@typescript-eslint/parser": "^8.22.0",
-    "eslint": "^9.19.0",
-    "typescript": "^5.7.3",
     "@vscode/test-cli": "^0.0.10",
-    "@vscode/test-electron": "^2.4.1"
+    "@vscode/test-electron": "^2.4.1",
+    "eslint": "^9.19.0",
+    "typescript": "^5.7.3"
   }
 }
