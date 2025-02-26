@@ -13,7 +13,7 @@ export class Settings {
     this.timeoutId = setTimeout(() => {
       this.timeoutId = undefined;
       this.saveImmediatly();
-    }, 30);
+    }, 300);
   }
 
   public saveImmediatly() {
