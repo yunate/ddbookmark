@@ -4,11 +4,6 @@ import * as icons from './icons';
 import { BookmarkItem, BookmarkModel } from "./bookmark-model";
 import { BookmarkTreeView } from "./bookmark-view";
 
-interface DoubleClickContext {
-  key: string;
-  timestamp: number;
-}
-
 export class BookmarkController {
   model = new BookmarkModel();
   view = new BookmarkTreeView(this.model);
@@ -38,7 +33,6 @@ export class BookmarkController {
 
     utils.registerSideBarView(this.view.treeView);
     utils.registerCommand('ddbookmark.toggle', () => this.toggle());
-    utils.registerCommand('ddbookmark.jumpTo', (i) => this.jumpTo(i));
     utils.registerCommand('ddbookmark.addFolder', (i) => this.addFolder(i));
     utils.registerCommand('ddbookmark.addFolderWithNoParent',
       () => this.addFolder());
@@ -95,70 +89,6 @@ export class BookmarkController {
     this.view.refresh();
     this.updateLineDecoration();
     this.model.saveLazy();
-  }
-
-  doubleClickContext: DoubleClickContext = { key: '', timestamp: 0 };
-  doubleClick(bookmark: BookmarkItem): boolean {
-    if (!bookmark) {
-      this.doubleClickContext.key = '';
-      this.doubleClickContext.timestamp = 0;
-      return false;
-    }
-
-    if (this.doubleClickContext.key !== bookmark.key()) {
-      this.doubleClickContext.key = bookmark.key();
-      this.doubleClickContext.timestamp = Date.now();
-      return false;
-    }
-
-    let now = Date.now();
-    if (now - this.doubleClickContext.timestamp < 300) {
-      this.doubleClickContext.key = '';
-      this.doubleClickContext.timestamp = 0;
-      return true;
-    }
-
-    this.doubleClickContext.timestamp = now;
-    return false;
-  }
-
-  private async jumpTo(bookmark: BookmarkItem) {
-    if (!this.doubleClick(bookmark)) {
-      return;
-    }
-
-    if (bookmark.isFolder) {
-      return;
-    }
-
-    let path = vscode.Uri.file(bookmark.filePath!);
-    if (bookmark.filePath!.startsWith("Untitled")) {
-      path = vscode.Uri.parse("untitled:" + bookmark.filePath);
-    }
-
-    vscode.window.showTextDocument(path, {
-      preview: false,
-      preserveFocus: false
-    }).then(textEditor => {
-        try {
-          let lineNumber = bookmark.lineNumber!;
-          if (textEditor.document.lineCount < lineNumber) {
-            utils.showTip("Error: Line number is out of range.");
-            lineNumber = 1;
-          }
-          let range = new vscode.Range(lineNumber - 1, 0, lineNumber - 1, 0);
-          textEditor.selection = new vscode.Selection(range.start, range.start);
-          textEditor.revealRange(range);
-        } catch (e) {
-          utils.showTip("Error: Failed to navigate to bookmark: " + e);
-          return;
-        }
-      },
-      reject => {
-        utils.showTip(
-          "Error: Failed to navigate to bookmark: open the file failure.");
-      }
-    );
   }
 
   public addFolder(parent?: BookmarkItem) {

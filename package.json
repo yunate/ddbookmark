@@ -3,7 +3,7 @@
   "displayName": "ddbookmark",
   "publisher": "yunate",
   "description": "This is a book mark extension for vscode.",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "engines": {
     "vscode": "^1.97.0"
   },

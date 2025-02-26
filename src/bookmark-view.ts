@@ -47,15 +47,19 @@ export class BookmarkTreeView implements
     } else {
       treeItem.contextValue = 'bookmark';
       treeItem.collapsibleState = vscode.TreeItemCollapsibleState.None;
-      treeItem.command = {
-        command: 'ddbookmark.jumpTo',
-        title: 'Jump to bookmark',
-        arguments: [bookmark]
-      };
       let status = bookmark.fileExistsStatus;
       if (status === utils.FileExistsStatus.LineExist) {
         treeItem.iconPath = icons.getThemeIcon('file');
         treeItem.tooltip = vscode.workspace.asRelativePath(bookmark.filePath!);
+        treeItem.command = {
+          command: 'vscode.open',
+          title: 'Jump to bookmark',
+          arguments: [
+            vscode.Uri.file(bookmark.filePath!).with({
+              fragment: `L${bookmark.lineNumber ?? 0}`
+            })
+          ]
+        };
       } else if (status === utils.FileExistsStatus.LineNotExist) {
         treeItem.iconPath = icons.getThemeIcon('warning');
         treeItem.tooltip = 'Line not exist';
