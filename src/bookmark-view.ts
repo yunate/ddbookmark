@@ -47,18 +47,29 @@ export class BookmarkTreeView implements
     } else {
       treeItem.contextValue = 'bookmark';
       treeItem.collapsibleState = vscode.TreeItemCollapsibleState.None;
-      treeItem.command = {
-        command: 'ddbookmark.jumpTo',
-        title: 'Jump to bookmark',
-        arguments: [bookmark]
-      };
       let status = bookmark.fileExistsStatus;
       if (status === utils.FileExistsStatus.LineExist) {
         treeItem.iconPath = icons.getThemeIcon('file');
         treeItem.tooltip = vscode.workspace.asRelativePath(bookmark.filePath!);
+        treeItem.command = {
+          command: 'vscode.open',
+          title: 'Jump to bookmark',
+          arguments: [
+            utils.getUri(bookmark.filePath!).with({
+              fragment: `L${bookmark.lineNumber ?? 1}`
+            })
+          ]
+        };
       } else if (status === utils.FileExistsStatus.LineNotExist) {
         treeItem.iconPath = icons.getThemeIcon('warning');
         treeItem.tooltip = 'Line not exist';
+        treeItem.command = {
+          command: 'vscode.open',
+          title: 'Jump to bookmark',
+          arguments: [
+            utils.getUri(bookmark.filePath!).with({ fragment: 'L1' })
+          ]
+        };
       } else {
         treeItem.iconPath = icons.getThemeIcon('error');
         treeItem.tooltip = 'File not exist';
@@ -85,34 +96,23 @@ export class BookmarkTreeView implements
     return children;
   }
 
-  // getParent(bookmark: BookmarkItem): BookmarkItem | undefined {
-  //   return this.model.getParent(bookmark);
-  // }
-
   private _onTreeDataChanged: vscode.EventEmitter<TreeDataChangedEvent>
     = new vscode.EventEmitter<TreeDataChangedEvent>();
   readonly onDidChangeTreeData: vscode.Event<TreeDataChangedEvent>
     = this._onTreeDataChanged.event;
-  refreshImmediatly(): void {
-    this._onTreeDataChanged.fire();
-    // vscode.commands.executeCommand(
-    //   'workbench.actions.treeView.ddbookmark-treeview.collapseAll');
-    // this.model.bookmarks.forEach(i => {
-    //   if (i.isFolder && i.isExpanded) {
-    //     this.treeView.reveal(i, { expand: true });
-    //   }
-    // });
+  refreshImmediatly(bookmark?: BookmarkItem | BookmarkItem[]): void {
+    this._onTreeDataChanged.fire(bookmark);
   }
 
   timeoutId?: NodeJS.Timeout;
-  public refresh(doLazyWork: boolean = true) {
+  public refresh(dbookmark?: BookmarkItem | BookmarkItem[]) {
     if (this.timeoutId) {
       return;
     }
     this.timeoutId = setTimeout(() => {
       this.timeoutId = undefined;
-      this.refreshImmediatly();
-    }, 30);
+      this.refreshImmediatly(dbookmark);
+    }, 300);
   }
 
   // Drag and drop support

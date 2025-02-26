@@ -3,7 +3,7 @@
   "displayName": "ddbookmark",
   "publisher": "yunate",
   "description": "This is a book mark extension for vscode.",
-  "version": "1.0.4",
+  "version": "1.0.8",
   "engines": {
     "vscode": "^1.97.0"
   },
@@ -15,8 +15,22 @@
   "categories": [
     "Other"
   ],
+  "keywords": [
+    "bookmark",
+    "mark",
+    "pin",
+    "folder tree",
+    "sticky",
+    "jump",
+    "selection",
+    "navigation"
+  ],
   "activationEvents": [
     "onStartupFinished"
+  ],
+  "extensionKind": [
+    "ui",
+    "workspace"
   ],
   "main": "./out/extension.js",
   "contributes": {
@@ -149,7 +163,7 @@
   },
   "devDependencies": {
     "@types/mocha": "^10.0.10",
-    "@types/node": "20.x",
+    "@types/node": "^20.17.19",
     "@types/tinycolor2": "^1.4.6",
     "@types/vscode": "^1.97.0",
     "@typescript-eslint/eslint-plugin": "^8.22.0",
