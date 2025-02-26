@@ -4,11 +4,6 @@ import * as icons from './icons';
 import { BookmarkItem, BookmarkModel } from "./bookmark-model";
 import { BookmarkTreeView } from "./bookmark-view";
 
-interface DoubleClickContext {
-  key: string;
-  timestamp: number;
-}
-
 export class BookmarkController {
   model = new BookmarkModel();
   view = new BookmarkTreeView(this.model);
@@ -38,18 +33,17 @@ export class BookmarkController {
 
     utils.registerSideBarView(this.view.treeView);
     utils.registerCommand('ddbookmark.toggle', () => this.toggle());
-    utils.registerCommand('ddbookmark.jumpTo', (i) => this.jumpTo(i));
     utils.registerCommand('ddbookmark.addFolder', (i) => this.addFolder(i));
     utils.registerCommand('ddbookmark.addFolderWithNoParent',
       () => this.addFolder());
     utils.registerCommand('ddbookmark.clearAll', () => this.clearAll());
+    utils.registerCommand('ddbookmark.refresh', () => this.refresh());
     utils.registerCommand('ddbookmark.rename', (i) => this.rename(i));
     utils.registerCommand('ddbookmark.delete', (i) => this.delete(i));
     utils.registerCommand('ddbookmark.setGutterIconColor',
       (i) => this.setGutterIconColor());
 
-    this.lazyRetrieveBookmarkStatus();
-    this.updateLineDecoration();
+    this.refresh();
   }
 
   dispose() {
@@ -69,7 +63,7 @@ export class BookmarkController {
       return;
     }
 
-    const filePath = editor.document.fileName;
+    const filePath = editor.document.fileName.toLowerCase();
     const lineNumber = editor.selection.active.line + 1;
     const item = BookmarkItem.createBookmark(filePath, lineNumber);
     if (this.model.find(item)) {
@@ -95,70 +89,6 @@ export class BookmarkController {
     this.view.refresh();
     this.updateLineDecoration();
     this.model.saveLazy();
-  }
-
-  doubleClickContext: DoubleClickContext = { key: '', timestamp: 0 };
-  doubleClick(bookmark: BookmarkItem): boolean {
-    if (!bookmark) {
-      this.doubleClickContext.key = '';
-      this.doubleClickContext.timestamp = 0;
-      return false;
-    }
-
-    if (this.doubleClickContext.key !== bookmark.key()) {
-      this.doubleClickContext.key = bookmark.key();
-      this.doubleClickContext.timestamp = Date.now();
-      return false;
-    }
-
-    let now = Date.now();
-    if (now - this.doubleClickContext.timestamp < 300) {
-      this.doubleClickContext.key = '';
-      this.doubleClickContext.timestamp = 0;
-      return true;
-    }
-
-    this.doubleClickContext.timestamp = now;
-    return false;
-  }
-
-  private async jumpTo(bookmark: BookmarkItem) {
-    if (!this.doubleClick(bookmark)) {
-      return;
-    }
-
-    if (bookmark.isFolder) {
-      return;
-    }
-
-    let path = vscode.Uri.file(bookmark.filePath!);
-    if (bookmark.filePath!.startsWith("Untitled")) {
-      path = vscode.Uri.parse("untitled:" + bookmark.filePath);
-    }
-
-    vscode.window.showTextDocument(path, {
-      preview: false,
-      preserveFocus: false
-    }).then(textEditor => {
-        try {
-          let lineNumber = bookmark.lineNumber!;
-          if (textEditor.document.lineCount < lineNumber) {
-            utils.showTip("Error: Line number is out of range.");
-            lineNumber = 1;
-          }
-          let range = new vscode.Range(lineNumber - 1, 0, lineNumber - 1, 0);
-          textEditor.selection = new vscode.Selection(range.start, range.start);
-          textEditor.revealRange(range);
-        } catch (e) {
-          utils.showTip("Error: Failed to navigate to bookmark: " + e);
-          return;
-        }
-      },
-      reject => {
-        utils.showTip(
-          "Error: Failed to navigate to bookmark: open the file failure.");
-      }
-    );
   }
 
   public addFolder(parent?: BookmarkItem) {
@@ -189,11 +119,18 @@ export class BookmarkController {
     });
   }
 
-  public clearAll() {
-    this.model.clear();
-    this.view.refresh();
+  public async clearAll() {
+    if (await utils.showConfirmDialog()) {
+      this.model.clear();
+      this.view.refresh();
+      this.updateLineDecoration();
+      this.model.saveLazy();
+    }
+  }
+
+  public refresh() {
     this.updateLineDecoration();
-    this.model.saveLazy();
+    this.retrieveBookmarkStatus();
   }
 
   public delete(bookmark: BookmarkItem) {
@@ -266,7 +203,7 @@ export class BookmarkController {
         if (
           !BookmarkItem.isValidBookmark(bookmark) ||
           bookmark.isFolder ||
-          editor.document.fileName !== bookmark.filePath ||
+          editor.document.fileName.toLocaleLowerCase() !== bookmark.filePath ||
           editor.document.lineCount < bookmark.lineNumber!
         ) {
           return;
@@ -315,19 +252,21 @@ export class BookmarkController {
     this.OnFileChanged(e.document.fileName, e.document.lineCount);
   }
 
-  public onDidRenameFiles(e: vscode.FileRenameEvent) {
-    e.files.forEach(async f => {
+  public async onDidRenameFiles(e: vscode.FileRenameEvent) {
+    for (let i = 0; i < e.files.length; i++) {
+      let f = e.files[i];
       this.model.onFileRenamed(f.oldUri.fsPath, f.newUri.fsPath);
       const lineCount = await utils.getFileLineCount(f.newUri.fsPath);
       this.OnFileChanged(f.newUri.fsPath, lineCount);
-    });
+    }
   }
 
-  public onDidCreateFiles(e: vscode.FileCreateEvent) {
-    e.files.forEach(async file => {
+  public async onDidCreateFiles(e: vscode.FileCreateEvent) {
+    for (let i = 0; i < e.files.length; i++) {
+      let file = e.files[i];
       const lineCount = await utils.getFileLineCount(file.fsPath);
       this.OnFileChanged(file.fsPath, lineCount);
-    });
+    }
   }
 
   public onDidDeleteFiles(e: vscode.FileDeleteEvent) {
@@ -342,9 +281,39 @@ export class BookmarkController {
     this.updateLineDecoration();
   }
 
-  public async lazyRetrieveBookmarkStatus() {
-    await this.model.retrieveBookmarkStatus();
-    this.view.refresh();
+  public async retrieveBookmarkStatus() {
+    const needRefreshItem: BookmarkItem[] = [];
+    const lineCountMap = new Map<string, number>();
+    for (let i = 0; i < this.model.bookmarks.length; i++) {
+      const bookmark = this.model.bookmarks[i];
+      if (bookmark.isFolder) {
+        continue;
+      }
+
+      let lineCount: number = -1;
+      const tmp = lineCountMap.get(bookmark.filePath!);
+      if (tmp) {
+        lineCount = tmp;
+      } else {
+        lineCount = await utils.getFileLineCount(bookmark.filePath!);
+        lineCountMap.set(bookmark.filePath!, lineCount);
+      }
+
+      const preState = bookmark.fileExistsStatus;
+      if (lineCount === -1) {
+        bookmark.fileExistsStatus = utils.FileExistsStatus.FileNotExist;
+      } else if (bookmark.lineNumber! > lineCount) {
+        bookmark.fileExistsStatus = utils.FileExistsStatus.LineNotExist;
+      } else {
+        bookmark.fileExistsStatus = utils.FileExistsStatus.LineExist;
+      }
+
+      if (preState !== bookmark.fileExistsStatus) {
+        needRefreshItem.push(bookmark);
+      }
+    }
+
+    this.view.refresh(needRefreshItem);
     this.model.saveLazy();
   }
 }

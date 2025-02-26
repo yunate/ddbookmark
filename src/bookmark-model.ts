@@ -185,7 +185,7 @@ export class BookmarkModel {
     this.timeoutId = setTimeout(() => {
       this.timeoutId = undefined;
       this.saveImmediatly();
-    }, 30);
+    }, 300);
   }
 
   public saveImmediatly() {
@@ -213,13 +213,6 @@ export class BookmarkModel {
         }
       }
     }
-  }
-
-  public async retrieveBookmarkStatus() {
-    this.bookmarks.forEach(async (bookmark) => {
-      bookmark.fileExistsStatus =
-        await utils.fileStatus(bookmark.filePath!, bookmark.lineNumber!);
-    });
   }
 
   public find(item: BookmarkItem): boolean {

@@ -7,6 +7,18 @@ export function showTip(log_str: string) {
   vscode.window.showInformationMessage(log_str);
 }
 
+export async function showConfirmDialog(): Promise<boolean> {
+  const str = 'Enter "yes" to confirm.';
+  let result = await vscode.window.showInputBox({
+    placeHolder: str,
+    value: str
+  });
+  if (result && result.toLowerCase() === 'yes') {
+    return true;
+  }
+  return false;
+}
+
 export function getLineText(lineNumber: number): string {
    const editor = vscode.window.activeTextEditor;
     if (!editor) {
@@ -60,16 +72,31 @@ export function unRegisterSideBarView<T>(view: vscode.TreeView<T>) {
   view.dispose();
 }
 
-export async function getFileLineCount(fullPath: string): Promise<number> {
-  try {
-    const uri = vscode.Uri.file(fullPath);
-    await vscode.workspace.fs.stat(uri);
-    const contentBytes = await vscode.workspace.fs.readFile(uri);
-    const content = Buffer.from(contentBytes).toString('utf-8');
-    return content.split(/\r?\n/).length;
-  } catch {
-    return 0;
+export function relativePath(fullPath: string): string {
+  if (vscode.workspace.workspaceFolders) {
+    for (const folder of vscode.workspace.workspaceFolders!) {
+      if (fullPath.startsWith(folder.uri.fsPath)) {
+        return path.relative(folder.uri.fsPath, fullPath);
+      }
+    }
   }
+  return fullPath;
+}
+
+export function baseName(fullPath: string): string {
+  return path.basename(fullPath);
+}
+
+export function getUri(fullPath: string): vscode.Uri {
+  if (vscode.workspace.workspaceFolders) {
+    for (const folder of vscode.workspace.workspaceFolders!) {
+      if (fullPath.startsWith(folder.uri.fsPath)) {
+        return vscode.Uri.parse(folder.uri.scheme + "://" + folder.uri.authority +
+          "/" + fullPath.replaceAll('\\', '/'));
+      }
+    }
+  }
+  return vscode.Uri.file(fullPath);
 }
 
 export enum FileExistsStatus {
@@ -77,24 +104,17 @@ export enum FileExistsStatus {
   LineNotExist,
   LineExist
 }
-export async function fileStatus(fullPath: string, lineNumber: number):
-  Promise<FileExistsStatus> {
-  let status: FileExistsStatus = FileExistsStatus.FileNotExist;
+
+export async function getFileLineCount(fullPath: string): Promise<number> {
   try {
-    const uri = vscode.Uri.file(fullPath);
-    await vscode.workspace.fs.stat(uri);
-    status = FileExistsStatus.LineNotExist;
+    const uri = getUri(fullPath);
     const contentBytes = await vscode.workspace.fs.readFile(uri);
     const content = Buffer.from(contentBytes).toString('utf-8');
-    const lines = content.split(/\r?\n/);
-    if (lines.length >= lineNumber) {
-      status = FileExistsStatus.LineExist;
-    }
-  } catch {
-    return status;
+    return content.split(/\r?\n/).length;
+  } catch (e) {
+    // File not exist
+    return -1;
   }
-
-  return status;
 }
 
 export function svgToUri(svg: string): vscode.Uri {
@@ -112,14 +132,6 @@ export function isValidColor(color: string): boolean {
 
 export function toRgbString(color: string): string {
   return tinycolor(color).toRgbString();
-}
-
-export function relativePath(fullPath: string): string {
-  return vscode.workspace.asRelativePath(fullPath);
-}
-
-export function baseName(fullPath: string): string {
-  return path.basename(fullPath);
 }
 
 export function getVersion(): string {
